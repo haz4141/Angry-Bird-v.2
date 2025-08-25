@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angry Birds Clone</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>Angry Birds</h1>
+            <div class="score">Score: <span id="score">0</span></div>
+            <div class="birds-left">Birds: <span id="birds-left">3</span></div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="controls">
+            <button id="restart-btn">Restart Game</button>
+            <div class="instructions">
+                <p>Click and drag to aim, release to shoot!</p>
+                <p>Destroy all pigs to win!</p>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
