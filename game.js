@@ -13,7 +13,7 @@ class AngryBirdsGame {
         
         // Game objects
         this.bird = null;
-        this.slingshot = { x: 100, y: 500 };
+        this.slingshot = { x: 150, y: 600 };
         this.obstacles = [];
         this.pigs = [];
         this.projectiles = [];
@@ -37,33 +37,33 @@ class AngryBirdsGame {
     
     createLevel() {
         // Create ground
-        this.ground = { y: 580, height: 20 };
+        this.ground = { y: 680, height: 20 };
         
         // Create obstacles (wooden blocks)
         this.obstacles = [
             // Bottom row
-            { x: 600, y: 520, width: 60, height: 60, type: 'wood', health: 100 },
-            { x: 660, y: 520, width: 60, height: 60, type: 'wood', health: 100 },
-            { x: 720, y: 520, width: 60, height: 60, type: 'wood', health: 100 },
+            { x: 700, y: 620, width: 60, height: 60, type: 'wood', health: 100 },
+            { x: 760, y: 620, width: 60, height: 60, type: 'wood', health: 100 },
+            { x: 820, y: 620, width: 60, height: 60, type: 'wood', health: 100 },
             
             // Middle row
-            { x: 630, y: 460, width: 60, height: 60, type: 'wood', health: 100 },
-            { x: 690, y: 460, width: 60, height: 60, type: 'wood', health: 100 },
+            { x: 730, y: 560, width: 60, height: 60, type: 'wood', health: 100 },
+            { x: 790, y: 560, width: 60, height: 60, type: 'wood', health: 100 },
             
             // Top row
-            { x: 660, y: 400, width: 60, height: 60, type: 'wood', health: 100 },
+            { x: 760, y: 500, width: 60, height: 60, type: 'wood', health: 100 },
             
             // Additional structures
-            { x: 500, y: 520, width: 60, height: 60, type: 'stone', health: 150 },
-            { x: 560, y: 520, width: 60, height: 60, type: 'stone', health: 150 },
-            { x: 530, y: 460, width: 60, height: 60, type: 'stone', health: 150 }
+            { x: 600, y: 620, width: 60, height: 60, type: 'stone', health: 150 },
+            { x: 660, y: 620, width: 60, height: 60, type: 'stone', health: 150 },
+            { x: 630, y: 560, width: 60, height: 60, type: 'stone', health: 150 }
         ];
         
         // Create pigs
         this.pigs = [
-            { x: 660, y: 460, radius: 25, health: 100, type: 'normal' },
-            { x: 660, y: 400, radius: 25, health: 100, type: 'normal' },
-            { x: 530, y: 400, radius: 30, health: 150, type: 'large' }
+            { x: 760, y: 560, radius: 25, health: 100, type: 'normal' },
+            { x: 760, y: 500, radius: 25, health: 100, type: 'normal' },
+            { x: 630, y: 500, radius: 30, health: 150, type: 'large' }
         ];
     }
     
@@ -136,7 +136,7 @@ class AngryBirdsGame {
     launchBird() {
         const dx = this.dragStart.x - this.dragEnd.x;
         const dy = this.dragStart.y - this.dragEnd.y;
-        const power = Math.min(Math.sqrt(dx * dx + dy * dy) * 0.1, 15);
+        const power = Math.min(Math.sqrt(dx * dx + dy * dy) * 0.1, 20);
         
         this.bird.vx = (dx / Math.sqrt(dx * dx + dy * dy)) * power;
         this.bird.vy = (dy / Math.sqrt(dx * dx + dy * dy)) * power;
@@ -163,7 +163,7 @@ class AngryBirdsGame {
         if (this.isDragging) {
             const dx = this.dragStart.x - this.dragEnd.x;
             const dy = this.dragStart.y - this.dragEnd.y;
-            const distance = Math.min(Math.sqrt(dx * dx + dy * dy) * 0.1, 50);
+            const distance = Math.min(Math.sqrt(dx * dx + dy * dy) * 0.1, 80);
             
             this.bird.x = this.slingshot.x - (dx / Math.sqrt(dx * dx + dy * dy)) * distance;
             this.bird.y = this.slingshot.y - (dy / Math.sqrt(dx * dx + dy * dy)) * distance;
@@ -371,9 +371,9 @@ class AngryBirdsGame {
         
         // Draw clouds
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        this.drawCloud(100, 100, 60);
-        this.drawCloud(300, 80, 40);
-        this.drawCloud(600, 120, 50);
+        this.drawCloud(150, 120, 60);
+        this.drawCloud(400, 100, 40);
+        this.drawCloud(750, 140, 50);
     }
     
     drawCloud(x, y, size) {
