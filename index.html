@@ -12,6 +12,7 @@
             <h1>Angry Birds</h1>
             <div class="score">Score: <span id="score">0</span></div>
             <div class="birds-left">Birds: <span id="birds-left">3</span></div>
+            <div class="combo" id="combo" style="display: none;">3x COMBO!</div>
         </div>
         <canvas id="gameCanvas" width="1000" height="700"></canvas>
         <div class="controls">
@@ -19,6 +20,20 @@
             <div class="instructions">
                 <p>Click and drag to aim, release to shoot!</p>
                 <p>Destroy all pigs to win!</p>
+                <div class="bird-types">
+                    <div class="bird-type">
+                        <span class="bird-icon red">🐦</span>
+                        <span>Red: Normal</span>
+                    </div>
+                    <div class="bird-type">
+                        <span class="bird-icon yellow">🐦</span>
+                        <span>Yellow: Speed Boost</span>
+                    </div>
+                    <div class="bird-type">
+                        <span class="bird-icon blue">🐦</span>
+                        <span>Blue: Split Attack</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

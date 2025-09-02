@@ -5,6 +5,9 @@ class AngryBirdsGame {
         this.score = 0;
         this.birdsLeft = 3;
         this.gameState = 'aiming'; // aiming, shooting, gameOver, won
+        this.level = 1;
+        this.combo = 0;
+        this.maxCombo = 0;
         
         // Physics constants
         this.gravity = 0.5;
@@ -13,16 +16,23 @@ class AngryBirdsGame {
         
         // Game objects
         this.bird = null;
+        this.birds = [];
         this.slingshot = { x: 150, y: 600 };
         this.obstacles = [];
         this.pigs = [];
         this.projectiles = [];
         this.particles = [];
+        this.explosions = [];
+        this.floatingTexts = [];
         
         // Mouse/touch handling
         this.isDragging = false;
         this.dragStart = { x: 0, y: 0 };
         this.dragEnd = { x: 0, y: 0 };
+        
+        // Audio context for sound effects
+        this.audioContext = null;
+        this.initAudio();
         
         this.init();
         this.setupEventListeners();
@@ -31,8 +41,35 @@ class AngryBirdsGame {
     
     init() {
         this.createLevel();
-        this.resetBird();
+        this.createBirds();
         this.updateUI();
+    }
+    
+    initAudio() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.log('Audio not supported');
+        }
+    }
+    
+    playSound(frequency, duration, type = 'sine') {
+        if (!this.audioContext) return;
+        
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+        
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + duration);
     }
     
     createLevel() {
@@ -59,23 +96,38 @@ class AngryBirdsGame {
             { x: 630, y: 560, width: 60, height: 60, type: 'stone', health: 150 }
         ];
         
-        // Create pigs
+        // Create pigs with enhanced properties
         this.pigs = [
-            { x: 760, y: 560, radius: 25, health: 100, type: 'normal' },
-            { x: 760, y: 500, radius: 25, health: 100, type: 'normal' },
-            { x: 630, y: 500, radius: 30, health: 150, type: 'large' }
+            { x: 760, y: 560, radius: 25, health: 100, type: 'normal', points: 200, isKing: false },
+            { x: 760, y: 500, radius: 25, health: 100, type: 'normal', points: 200, isKing: false },
+            { x: 630, y: 500, radius: 30, health: 150, type: 'large', points: 300, isKing: true }
         ];
+        
+        // Add some floating platforms
+        this.obstacles.push(
+            { x: 550, y: 400, width: 120, height: 20, type: 'ice', health: 80, slippery: true },
+            { x: 750, y: 350, width: 120, height: 20, type: 'ice', health: 80, slippery: true }
+        );
+    }
+    
+    createBirds() {
+        this.birds = [
+            { x: this.slingshot.x, y: this.slingshot.y, radius: 20, vx: 0, vy: 0, isLaunched: false, type: 'red', special: 'none' },
+            { x: this.slingshot.x + 30, y: this.slingshot.y, radius: 20, vx: 0, vy: 0, isLaunched: false, type: 'yellow', special: 'speed' },
+            { x: this.slingshot.x + 60, y: this.slingshot.y, radius: 20, vx: 0, vy: 0, isLaunched: false, type: 'blue', special: 'split' }
+        ];
+        this.bird = this.birds[0];
     }
     
     resetBird() {
-        this.bird = {
-            x: this.slingshot.x,
-            y: this.slingshot.y,
-            radius: 20,
-            vx: 0,
-            vy: 0,
-            isLaunched: false
-        };
+        if (this.birdsLeft > 0) {
+            this.bird = this.birds[3 - this.birdsLeft];
+            this.bird.x = this.slingshot.x;
+            this.bird.y = this.slingshot.y;
+            this.bird.vx = 0;
+            this.bird.vy = 0;
+            this.bird.isLaunched = false;
+        }
     }
     
     setupEventListeners() {
@@ -143,7 +195,48 @@ class AngryBirdsGame {
         this.bird.isLaunched = true;
         this.gameState = 'shooting';
         this.birdsLeft--;
+        
+        // Play launch sound
+        this.playSound(400, 0.2, 'sawtooth');
+        
+        // Apply bird special abilities
+        this.applyBirdSpecial();
+        
         this.updateUI();
+    }
+    
+    applyBirdSpecial() {
+        switch (this.bird.special) {
+            case 'speed':
+                this.bird.vx *= 1.5;
+                this.bird.vy *= 1.5;
+                this.playSound(600, 0.3, 'square');
+                break;
+            case 'split':
+                this.createSplitBirds();
+                this.playSound(800, 0.4, 'triangle');
+                break;
+        }
+    }
+    
+    createSplitBirds() {
+        const angles = [-15, 0, 15];
+        angles.forEach((angle, index) => {
+            if (index === 0) return; // Skip the main bird
+            
+            const rad = (angle * Math.PI) / 180;
+            const splitBird = {
+                x: this.bird.x,
+                y: this.bird.y,
+                radius: 15,
+                vx: this.bird.vx * Math.cos(rad) - this.bird.vy * Math.sin(rad),
+                vy: this.bird.vx * Math.sin(rad) + this.bird.vy * Math.cos(rad),
+                isLaunched: true,
+                type: 'blue',
+                special: 'none'
+            };
+            this.birds.push(splitBird);
+        });
     }
     
     update() {
@@ -153,10 +246,32 @@ class AngryBirdsGame {
             this.updateShooting();
         }
         
+        this.updateAllBirds();
         this.updateProjectiles();
         this.updateParticles();
+        this.updateExplosions();
+        this.updateFloatingTexts();
         this.checkCollisions();
         this.checkGameState();
+    }
+    
+    updateAllBirds() {
+        this.birds.forEach(bird => {
+            if (bird.isLaunched) {
+                bird.vx *= this.friction;
+                bird.vy += this.gravity;
+                bird.x += bird.vx;
+                bird.y += bird.vy;
+                
+                // Check if bird is out of bounds
+                if (bird.x > this.canvas.width + 50 || bird.y > this.canvas.height + 50) {
+                    const index = this.birds.indexOf(bird);
+                    if (index > -1 && bird !== this.bird) {
+                        this.birds.splice(index, 1);
+                    }
+                }
+            }
+        });
     }
     
     updateAiming() {
@@ -171,20 +286,18 @@ class AngryBirdsGame {
     }
     
     updateShooting() {
-        // Update bird physics
-        if (this.bird.isLaunched) {
-            this.bird.vx *= this.friction;
-            this.bird.vy += this.gravity;
-            this.bird.x += this.bird.vx;
-            this.bird.y += this.bird.vy;
+        // Check if bird is out of bounds
+        if (this.bird.isLaunched && (this.bird.x > this.canvas.width + 50 || this.bird.y > this.canvas.height + 50)) {
+            // Reset combo when bird misses
+            if (this.combo > 0) {
+                this.combo = 0;
+                this.createFloatingText('COMBO BROKEN!', this.canvas.width / 2, this.canvas.height / 2, '#FF0000');
+            }
             
-            // Check if bird is out of bounds
-            if (this.bird.x > this.canvas.width + 50 || this.bird.y > this.canvas.height + 50) {
-                this.resetBird();
-                this.gameState = 'aiming';
-                if (this.birdsLeft <= 0) {
-                    this.gameState = 'gameOver';
-                }
+            this.resetBird();
+            this.gameState = 'aiming';
+            if (this.birdsLeft <= 0) {
+                this.gameState = 'gameOver';
             }
         }
     }
@@ -218,33 +331,69 @@ class AngryBirdsGame {
         }
     }
     
-    checkCollisions() {
-        // Bird collisions
-        if (this.bird.isLaunched) {
-            // Bird vs obstacles
-            for (let i = this.obstacles.length - 1; i >= 0; i--) {
-                const obstacle = this.obstacles[i];
-                if (this.checkCollision(this.bird, obstacle)) {
-                    this.handleCollision(this.bird, obstacle);
-                    this.createExplosion(this.bird.x, this.bird.y);
-                    this.bird.isLaunched = false;
-                    this.bird.vx = 0;
-                    this.bird.vy = 0;
-                }
-            }
+    updateExplosions() {
+        for (let i = this.explosions.length - 1; i >= 0; i--) {
+            const explosion = this.explosions[i];
+            explosion.radius += 2;
+            explosion.life--;
             
-            // Bird vs pigs
-            for (let i = this.pigs.length - 1; i >= 0; i--) {
-                const pig = this.pigs[i];
-                if (this.checkCollision(this.bird, pig)) {
-                    this.handlePigHit(pig);
-                    this.createExplosion(this.bird.x, this.bird.y);
-                    this.bird.isLaunched = false;
-                    this.bird.vx = 0;
-                    this.bird.vy = 0;
-                }
+            if (explosion.life <= 0) {
+                this.explosions.splice(i, 1);
             }
         }
+    }
+    
+    updateFloatingTexts() {
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const text = this.floatingTexts[i];
+            text.x += text.vx;
+            text.y += text.vy;
+            text.vy += 0.1;
+            text.life--;
+            
+            if (text.life <= 0) {
+                this.floatingTexts.splice(i, 1);
+            }
+        }
+    }
+    
+    checkCollisions() {
+        // Check all birds for collisions
+        this.birds.forEach(bird => {
+            if (bird.isLaunched) {
+                // Bird vs obstacles
+                for (let i = this.obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = this.obstacles[i];
+                    if (this.checkCollision(bird, obstacle)) {
+                        this.handleCollision(bird, obstacle);
+                        this.createExplosion(bird.x, bird.y);
+                        this.createFloatingText('+100', bird.x, bird.y, '#FFD700');
+                        bird.isLaunched = false;
+                        bird.vx = 0;
+                        bird.vy = 0;
+                        
+                        // Play collision sound
+                        this.playSound(300, 0.1, 'sawtooth');
+                    }
+                }
+                
+                // Bird vs pigs
+                for (let i = this.pigs.length - 1; i >= 0; i--) {
+                    const pig = this.pigs[i];
+                    if (this.checkCollision(bird, pig)) {
+                        this.handlePigHit(pig);
+                        this.createExplosion(bird.x, bird.y);
+                        this.createFloatingText(`+${pig.points}`, bird.x, bird.y, '#90EE90');
+                        bird.isLaunched = false;
+                        bird.vx = 0;
+                        bird.vy = 0;
+                        
+                        // Play pig hit sound
+                        this.playSound(200, 0.2, 'triangle');
+                    }
+                }
+            }
+        });
         
         // Projectile collisions
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
@@ -297,23 +446,57 @@ class AngryBirdsGame {
             const index = this.pigs.indexOf(pig);
             if (index > -1) {
                 this.pigs.splice(index, 1);
-                this.score += 200;
+                this.score += pig.points;
+                this.combo++;
+                this.maxCombo = Math.max(this.maxCombo, this.combo);
+                
+                // Bonus points for combo
+                if (this.combo > 1) {
+                    const bonus = this.combo * 50;
+                    this.score += bonus;
+                    this.createFloatingText(`COMBO +${bonus}!`, pig.x, pig.y, '#FF69B4');
+                }
+                
                 this.updateUI();
             }
         }
     }
     
     createExplosion(x, y) {
-        for (let i = 0; i < 10; i++) {
+        // Create particle explosion
+        for (let i = 0; i < 15; i++) {
             this.particles.push({
                 x: x,
                 y: y,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                life: 30,
+                vx: (Math.random() - 0.5) * 15,
+                vy: (Math.random() - 0.5) * 15,
+                life: 40,
                 color: `hsl(${Math.random() * 60 + 15}, 70%, 50%)`
             });
         }
+        
+        // Create explosion effect
+        this.explosions.push({
+            x: x,
+            y: y,
+            radius: 0,
+            maxRadius: 50,
+            life: 20,
+            color: '#FF4500'
+        });
+    }
+    
+    createFloatingText(text, x, y, color) {
+        this.floatingTexts.push({
+            text: text,
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 2,
+            vy: -3,
+            life: 60,
+            color: color,
+            fontSize: 20
+        });
     }
     
     checkGameState() {
@@ -343,14 +526,20 @@ class AngryBirdsGame {
         // Draw pigs
         this.drawPigs();
         
-        // Draw bird
-        this.drawBird();
+        // Draw all birds
+        this.drawAllBirds();
         
         // Draw projectiles
         this.drawProjectiles();
         
         // Draw particles
         this.drawParticles();
+        
+        // Draw explosions
+        this.drawExplosions();
+        
+        // Draw floating texts
+        this.drawFloatingTexts();
         
         // Draw aiming line
         if (this.isDragging) {
@@ -359,6 +548,11 @@ class AngryBirdsGame {
         
         // Draw game state messages
         this.drawGameState();
+        
+        // Draw combo counter
+        if (this.combo > 1) {
+            this.drawComboCounter();
+        }
     }
     
     drawBackground() {
@@ -424,10 +618,16 @@ class AngryBirdsGame {
             
             this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
             
-            // Draw health bar
-            const healthPercent = obstacle.health / (obstacle.type === 'wood' ? 100 : 150);
-            this.ctx.fillStyle = `rgb(${255 * (1 - healthPercent)}, ${255 * healthPercent}, 0)`;
-            this.ctx.fillRect(obstacle.x, obstacle.y - 10, obstacle.width * healthPercent, 5);
+                    // Draw health bar
+        const healthPercent = obstacle.health / (obstacle.type === 'wood' ? 100 : obstacle.type === 'stone' ? 150 : 80);
+        this.ctx.fillStyle = `rgb(${255 * (1 - healthPercent)}, ${255 * healthPercent}, 0)`;
+        this.ctx.fillRect(obstacle.x, obstacle.y - 10, obstacle.width * healthPercent, 5);
+        
+        // Draw type indicator
+        if (obstacle.type === 'ice') {
+            this.ctx.fillStyle = 'rgba(135, 206, 235, 0.3)';
+            this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
         });
     }
     
@@ -458,41 +658,90 @@ class AngryBirdsGame {
             this.ctx.arc(pig.x, pig.y + 5, 3, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Health bar
-            const healthPercent = pig.health / (pig.type === 'large' ? 150 : 100);
-            this.ctx.fillStyle = `rgb(${255 * (1 - healthPercent)}, ${255 * healthPercent}, 0)`;
-            this.ctx.fillRect(pig.x - pig.radius, pig.y - pig.radius - 10, pig.radius * 2 * healthPercent, 5);
+                    // Health bar
+        const healthPercent = pig.health / (pig.type === 'large' ? 150 : 100);
+        this.ctx.fillStyle = `rgb(${255 * (1 - healthPercent)}, ${255 * healthPercent}, 0)`;
+        this.ctx.fillRect(pig.x - pig.radius, pig.y - pig.radius - 10, pig.radius * 2 * healthPercent, 5);
+        
+        // King pig crown
+        if (pig.isKing) {
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.beginPath();
+            this.ctx.moveTo(pig.x - 15, pig.y - pig.radius - 15);
+            this.ctx.lineTo(pig.x, pig.y - pig.radius - 25);
+            this.ctx.lineTo(pig.x + 15, pig.y - pig.radius - 15);
+            this.ctx.lineTo(pig.x + 10, pig.y - pig.radius - 20);
+            this.ctx.lineTo(pig.x - 10, pig.y - pig.radius - 20);
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
         });
     }
     
-    drawBird() {
-        if (!this.bird) return;
+    drawAllBirds() {
+        this.birds.forEach(bird => {
+            this.drawBird(bird);
+        });
+    }
+    
+    drawBird(bird) {
+        if (!bird) return;
+        
+        // Body color based on type
+        let bodyColor = '#FF0000';
+        let eyeColor = '#000000';
+        let beakColor = '#FFD700';
+        
+        switch (bird.type) {
+            case 'red':
+                bodyColor = '#FF0000';
+                break;
+            case 'yellow':
+                bodyColor = '#FFD700';
+                eyeColor = '#8B4513';
+                break;
+            case 'blue':
+                bodyColor = '#4169E1';
+                beakColor = '#FF69B4';
+                break;
+        }
         
         // Body
-        this.ctx.fillStyle = '#FF0000';
+        this.ctx.fillStyle = bodyColor;
         this.ctx.beginPath();
-        this.ctx.arc(this.bird.x, this.bird.y, this.bird.radius, 0, Math.PI * 2);
+        this.ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
         this.ctx.fill();
         
         // Eyes
         this.ctx.fillStyle = 'white';
         this.ctx.beginPath();
-        this.ctx.arc(this.bird.x - 5, this.bird.y - 5, 4, 0, Math.PI * 2);
+        this.ctx.arc(bird.x - 5, bird.y - 5, 4, 0, Math.PI * 2);
         this.ctx.fill();
         
-        this.ctx.fillStyle = 'black';
+        this.ctx.fillStyle = eyeColor;
         this.ctx.beginPath();
-        this.ctx.arc(this.bird.x - 5, this.bird.y - 5, 2, 0, Math.PI * 2);
+        this.ctx.arc(bird.x - 5, bird.y - 5, 2, 0, Math.PI * 2);
         this.ctx.fill();
         
         // Beak
-        this.ctx.fillStyle = '#FFD700';
+        this.ctx.fillStyle = beakColor;
         this.ctx.beginPath();
-        this.ctx.moveTo(this.bird.x + this.bird.radius, this.bird.y);
-        this.ctx.lineTo(this.bird.x + this.bird.radius + 8, this.bird.y - 3);
-        this.ctx.lineTo(this.bird.x + this.bird.radius + 8, this.bird.y + 3);
+        this.ctx.moveTo(bird.x + bird.radius, bird.y);
+        this.ctx.lineTo(bird.x + bird.radius + 8, bird.y - 3);
+        this.ctx.lineTo(bird.x + bird.radius + 8, bird.y + 3);
         this.ctx.closePath();
         this.ctx.fill();
+        
+        // Special effect indicators
+        if (bird.special !== 'none') {
+            this.ctx.strokeStyle = '#FFFFFF';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.arc(bird.x, bird.y, bird.radius + 5, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+        }
     }
     
     drawProjectiles() {
@@ -507,12 +756,42 @@ class AngryBirdsGame {
     drawParticles() {
         this.particles.forEach(particle => {
             this.ctx.fillStyle = particle.color;
-            this.ctx.globalAlpha = particle.life / 30;
+            this.ctx.globalAlpha = particle.life / 40;
             this.ctx.beginPath();
             this.ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
             this.ctx.fill();
         });
         this.ctx.globalAlpha = 1;
+    }
+    
+    drawExplosions() {
+        this.explosions.forEach(explosion => {
+            this.ctx.strokeStyle = explosion.color;
+            this.ctx.lineWidth = 3;
+            this.ctx.globalAlpha = explosion.life / 20;
+            this.ctx.beginPath();
+            this.ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+            this.ctx.stroke();
+        });
+        this.ctx.globalAlpha = 1;
+    }
+    
+    drawFloatingTexts() {
+        this.floatingTexts.forEach(text => {
+            this.ctx.fillStyle = text.color;
+            this.ctx.font = `bold ${text.fontSize}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.globalAlpha = text.life / 60;
+            this.ctx.fillText(text.text, text.x, text.y);
+        });
+        this.ctx.globalAlpha = 1;
+    }
+    
+    drawComboCounter() {
+        this.ctx.fillStyle = '#FF69B4';
+        this.ctx.font = 'bold 24px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(`COMBO: ${this.combo}x`, this.canvas.width / 2, 50);
     }
     
     drawAimingLine() {
@@ -550,16 +829,31 @@ class AngryBirdsGame {
     updateUI() {
         document.getElementById('score').textContent = this.score;
         document.getElementById('birds-left').textContent = this.birdsLeft;
+        
+        // Update combo display
+        const comboElement = document.getElementById('combo');
+        if (comboElement) {
+            if (this.combo > 1) {
+                comboElement.textContent = `${this.combo}x COMBO!`;
+                comboElement.style.display = 'block';
+            } else {
+                comboElement.style.display = 'none';
+            }
+        }
     }
     
     restart() {
         this.score = 0;
         this.birdsLeft = 3;
+        this.combo = 0;
+        this.maxCombo = 0;
         this.gameState = 'aiming';
         this.projectiles = [];
         this.particles = [];
+        this.explosions = [];
+        this.floatingTexts = [];
         this.createLevel();
-        this.resetBird();
+        this.createBirds();
         this.updateUI();
     }
     
