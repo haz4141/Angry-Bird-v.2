@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Angry Birds - Complete Edition</title>
     <style>
         * {
@@ -20,6 +22,12 @@
             align-items: center;
             padding: 20px;
             overflow: hidden;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .game-container {
@@ -68,6 +76,10 @@
             cursor: crosshair;
             width: 100%;
             height: auto;
+            touch-action: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
         }
 
         .controls-info {

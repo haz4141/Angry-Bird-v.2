@@ -113,7 +113,9 @@ class AngryBirdsGame {
         
         this.canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
-            this.handleMouseUp(e);
+            // Use changedTouches for touchend since touches array is empty
+            const touch = e.changedTouches[0];
+            this.handleMouseUp(touch);
         }, { passive: false });
 
         document.addEventListener('keydown', (e) => this.handleKeyDown(e));
@@ -121,9 +123,12 @@ class AngryBirdsGame {
 
     getMousePos(e) {
         const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        
         return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
         };
     }
 
