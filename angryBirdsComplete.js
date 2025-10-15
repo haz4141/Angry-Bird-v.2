@@ -664,7 +664,7 @@ class AngryBirdsGame {
             setTimeout(() => {
                 if (this.pigs.length > 0) {
                     this.currentScreen = 'gameOver';
-                    this.playSound(200, 1, 'sawtooth', 0.15);
+                    this.playSound(250, 0.4, 'sine', 0.08);
                     this.updateUI();
                 }
             }, 2000);
